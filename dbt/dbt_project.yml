@@ -1,0 +1,22 @@
+name: 'disaster_pipeline'
+version: '1.0.0'
+config-version: 2
+
+profile: 'disaster_pipeline'
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+models:
+  disaster_pipeline:
+    staging:
+      +schema: staging        # → disasters_staging
+      +materialized: view
+    marts:
+      +schema: marts          # → disasters_marts
+      +materialized: table
+    gold:
+      +schema: gold           # → disasters_gold  ← NEW
+      +materialized: table

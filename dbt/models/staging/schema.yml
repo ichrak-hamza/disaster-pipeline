@@ -1,0 +1,22 @@
+version: 2
+
+models:
+  - name: stg_gdacs
+    description: "Cleaned GDACS disaster events"
+    columns:
+      - name: event_id
+        tests: [not_null, unique]
+      - name: event_type
+        tests: [not_null]
+      - name: latitude
+        tests: [not_null]
+      - name: longitude
+        tests: [not_null]
+
+  - name: stg_eonet
+    description: "Cleaned NASA EONET natural events"
+    columns:
+      - name: event_id
+        tests: [not_null, unique]
+      - name: event_name
+        tests: [not_null]

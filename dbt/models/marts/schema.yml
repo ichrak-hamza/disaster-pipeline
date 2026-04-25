@@ -1,0 +1,52 @@
+version: 2
+
+models:
+  - name: mart_disasters
+    description: >
+      Unified disaster table combining GDACS and ReliefWeb.
+      One row per disaster event/episode. GDACS is the primary source
+      for geo and severity data; ReliefWeb enriches with official status.
+    columns:
+      - name: disaster_id
+        description: "Surrogate key: GDACS-{event_id}-{episode_id} or RW-{rw_id}"
+        tests:
+          - not_null
+          - unique
+      - name: event_type
+        description: "Standardized disaster type code"
+        tests:
+          - not_null
+      - name: event_name
+        description: "Disaster name"
+        tests:
+          - not_null
+      - name: country
+        description: "Affected country"
+      - name: event_date
+        description: "Disaster start date"
+      - name: status
+        description: "ongoing / past / unknown"
+        tests:
+          - accepted_values:
+              values: ['ongoing', 'past', 'alert', 'unknown']
+
+  - name: mart_disasters_by_country
+    description: "Aggregated disaster counts per country for map visualization"
+    columns:
+      - name: country
+        tests:
+          - not_null
+          - unique
+      - name: total_disasters
+        tests:
+          - not_null
+
+  - name: mart_disasters_timeline
+    description: "Daily disaster counts by type for time series charts"
+    columns:
+      - name: event_day
+        tests:
+          - not_null
+      - name: event_type
+        tests:
+          - not_null

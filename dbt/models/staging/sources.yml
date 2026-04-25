@@ -1,0 +1,11 @@
+version: 2
+
+sources:
+  - name: disasters_raw
+    database: disasters
+    schema: public
+    tables:
+      - name: raw_gdacs
+        description: "Raw GDACS disaster events loaded from MinIO by Airflow"
+      - name: raw_eonet
+        description: "Raw NASA EONET events loaded from MinIO by Airflow"

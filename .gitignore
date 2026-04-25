@@ -1,0 +1,52 @@
+# Environment
+.env
+.env.local
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# DBT
+.dbt/
+dbt_packages/
+dbt_modules/
+target/
+logs/
+dbt/.user.yml
+dbt/profiles.yml
+
+# Airflow
+airflow/logs/
+airflow/plugins/__pycache__/
+
+# Kafka / Java
+*.class
+*.jar
+
+# Docker
+*.override.yml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
