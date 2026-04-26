@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 import os, json, logging, subprocess, shutil
 import psycopg2
 from minio import Minio
+import requests
 
 log = logging.getLogger(__name__)
 
@@ -118,6 +119,7 @@ def load_gdacs_to_postgres():
                 props = data
                 coords = [data.get("longitude"), data.get("latitude")]
 
+            # Gestion robuste des données imbriquées
             severity_data = props.get("severitydata", {})
             if not isinstance(severity_data, dict):
                 severity_data = {}
@@ -130,6 +132,15 @@ def load_gdacs_to_postgres():
             if not event_id:
                 continue
 
+            # Extraire et convertir TOUTES les valeurs en types scalaires
+            def safe_str(val):
+                """Convertit n'importe quelle valeur en string ou None"""
+                if val is None:
+                    return None
+                if isinstance(val, (dict, list)):
+                    return json.dumps(val)
+                return str(val)
+
             cur.execute("""
                 INSERT INTO raw_gdacs (
                     event_id, episode_id, event_type, event_name, alert_level,
@@ -138,21 +149,26 @@ def load_gdacs_to_postgres():
                     population_affected, glide, url
                 ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                 ON CONFLICT (event_id, episode_id) DO UPDATE SET
-                    alert_level         = EXCLUDED.alert_level,
-                    to_date             = EXCLUDED.to_date,
+                    alert_level = EXCLUDED.alert_level,
+                    to_date = EXCLUDED.to_date,
                     population_affected = EXCLUDED.population_affected,
-                    ingested_at         = now()
+                    ingested_at = now()
             """, (
                 event_id, episode_id,
-                props.get("eventtype"), props.get("eventname"), props.get("alertlevel"),
-                props.get("fromdate"), props.get("todate"),
-                props.get("countryname"), props.get("iso3"),
-                str(coords[1]) if coords and len(coords) > 1 and coords[1] is not None else None,
-                str(coords[0]) if coords and len(coords) > 0 and coords[0] is not None else None,
-                str(severity_data.get("severity", "")) if severity_data.get("severity") is not None else None,
-                severity_data.get("severityunit"),
-                str(population_data.get("populationaffected", "")) if population_data.get("populationaffected") is not None else None,
-                props.get("glide"), props.get("url"),
+                safe_str(props.get("eventtype")),
+                safe_str(props.get("eventname")),
+                safe_str(props.get("alertlevel")),
+                safe_str(props.get("fromdate")),
+                safe_str(props.get("todate")),
+                safe_str(props.get("countryname")),
+                safe_str(props.get("iso3")),
+                safe_str(coords[1]) if coords and len(coords) > 1 and coords[1] is not None else None,
+                safe_str(coords[0]) if coords and len(coords) > 0 and coords[0] is not None else None,
+                safe_str(severity_data.get("severity")),
+                safe_str(severity_data.get("severityunit")),
+                safe_str(population_data.get("populationaffected")),
+                safe_str(props.get("glide")),
+                safe_str(props.get("url")),
             ))
             inserted += 1
         except Exception as e:
@@ -164,7 +180,6 @@ def load_gdacs_to_postgres():
     cur.close()
     conn.close()
     log.info(f"GDACS: upserted {inserted} records, {errors} errors → raw_gdacs")
-
 # ─── task 3 : load NASA EONET from MinIO ──────────────────────────────────────
 
 def load_eonet_to_postgres():

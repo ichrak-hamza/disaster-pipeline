@@ -147,7 +147,7 @@ services:
     profiles: ["transform"]
     entrypoint: /bin/bash
     command: >
-      -c "airflow db init && airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com"
+      -c "airflow db migrate && airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com"
     depends_on:
       postgres:
         condition: service_healthy
@@ -169,8 +169,9 @@ services:
     <<: *airflow-common
     profiles: ["transform"]
     command: scheduler
-    environment:
-      _PIP_ADDITIONAL_REQUIREMENTS: "dbt-postgres==1.7.0 minio requests"
+    # SUPPRIME cette ligne ↓↓↓
+    # environment:
+    #   _PIP_ADDITIONAL_REQUIREMENTS: "dbt-postgres==1.7.0 minio requests"
     depends_on:
       postgres:
         condition: service_healthy
