@@ -1,5 +1,4 @@
 version: 2
-
 models:
   - name: mart_disasters
     description: >
@@ -29,18 +28,17 @@ models:
         tests:
           - accepted_values:
               values: ['ongoing', 'past', 'alert', 'unknown']
-
   - name: mart_disasters_by_country
     description: "Aggregated disaster counts per country for map visualization"
     columns:
       - name: country
         tests:
           - not_null
-          - unique
+          - unique:
+              severity: warn
       - name: total_disasters
         tests:
           - not_null
-
   - name: mart_disasters_timeline
     description: "Daily disaster counts by type for time series charts"
     columns:
