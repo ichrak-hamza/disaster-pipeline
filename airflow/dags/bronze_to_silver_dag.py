@@ -117,89 +117,75 @@ def load_gdacs_to_postgres():
             continue
         try:
             resp = client.get_object("bronze", obj.object_name)
-<<<<<<< HEAD
+            data = json.loads(resp.read())
 
-=======
-            raw = resp.read().decode("utf-8")
-            lines = [l.strip() for l in raw.strip().split("\n") if l.strip()]
->>>>>>> bb53a841175eb3b562739133a8dc472634ece009
+            if "properties" in 
+                props = data.get("properties", {})
+                geo = data.get("geometry", {})
+                coords = geo.get("coordinates", [None, None])
+            else:
+                props = data
+                coords = [data.get("longitude"), data.get("latitude")]
+
+            severity_data = props.get("severitydata", {})
+            if not isinstance(severity_data, dict):
+                severity_data = {}
+            population_data = props.get("population", {})
+            if not isinstance(population_data, dict):
+                population_data = {}
+
+            event_id = str(props.get("eventid", ""))
+            episode_id = str(props.get("episodeid", "0"))
+            if not event_id:
+                continue
+
+            cur.execute("""
+                INSERT INTO raw_gdacs (
+                    event_id, episode_id, event_type, event_name, alert_level,
+                    from_date, to_date, country, iso3,
+                    latitude, longitude, severity_value, severity_unit,
+                    population_affected, glide, url
+                ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                ON CONFLICT (event_id, episode_id) DO UPDATE SET
+                    alert_level = EXCLUDED.alert_level,
+                    to_date = EXCLUDED.to_date,
+                    population_affected = EXCLUDED.population_affected,
+                    ingested_at = now()
+            """, (
+                event_id, episode_id,
+                safe_str(props.get("eventtype")),
+                safe_str(props.get("eventname")),
+                safe_str(props.get("alertlevel")),
+                safe_str(props.get("fromdate")),
+                safe_str(props.get("todate")),
+                safe_str(props.get("country")),  # ← Version binôme
+                safe_str(props.get("iso3")),
+                safe_str(coords[1]) if coords and len(coords) > 1 and coords[1] is not None else None,
+                safe_str(coords[0]) if coords and len(coords) > 0 and coords[0] is not None else None,
+                safe_str(severity_data.get("severity")),
+                safe_str(severity_data.get("severityunit")),
+                safe_str(population_data.get("populationaffected")),
+                safe_str(props.get("glide")),
+                safe_str(props.get("url")),
+            ))
+            inserted += 1
         except Exception as e:
             errors += 1
-            log.warning(f"Error reading {obj.object_name}: {e}")
+            log.warning(f"Error processing {obj.object_name}: {e}")
             continue
-
-        for line in lines:
-            try:
-                data = json.loads(line)
-
-                if "properties" in data:
-                    props = data.get("properties", {})
-                    geo = data.get("geometry", {})
-                    coords = geo.get("coordinates", [None, None])
-                else:
-                    props = data
-                    coords = [data.get("longitude"), data.get("latitude")]
-
-                severity_data = props.get("severitydata", {})
-                if not isinstance(severity_data, dict):
-                    severity_data = {}
-                population_data = props.get("population", {})
-                if not isinstance(population_data, dict):
-                    population_data = {}
-
-                event_id = str(props.get("eventid", ""))
-                episode_id = str(props.get("episodeid", "0"))
-                if not event_id:
-                    continue
-
-                cur.execute("""
-                    INSERT INTO raw_gdacs (
-                        event_id, episode_id, event_type, event_name, alert_level,
-                        from_date, to_date, country, iso3,
-                        latitude, longitude, severity_value, severity_unit,
-                        population_affected, glide, url
-                    ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                    ON CONFLICT (event_id, episode_id) DO UPDATE SET
-                        alert_level         = EXCLUDED.alert_level,
-                        to_date             = EXCLUDED.to_date,
-                        country             = EXCLUDED.country,
-                        iso3                = EXCLUDED.iso3,
-                        latitude            = EXCLUDED.latitude,
-                        longitude           = EXCLUDED.longitude,
-                        severity_value      = EXCLUDED.severity_value,
-                        severity_unit       = EXCLUDED.severity_unit,
-                        population_affected = EXCLUDED.population_affected,
-                        ingested_at         = now()
-                """, (
-                    event_id, episode_id,
-                    safe_str(props.get("eventtype")),
-                    safe_str(props.get("eventname")),
-                    safe_str(props.get("alertlevel")),
-                    safe_str(props.get("fromdate")),
-                    safe_str(props.get("todate")),
-                    safe_str(props.get("country")),
-                    safe_str(props.get("iso3")),
-                    safe_str(coords[1]) if coords and len(coords) > 1 and coords[1] is not None else None,
-                    safe_str(coords[0]) if coords and len(coords) > 0 and coords[0] is not None else None,
-                    safe_str(severity_data.get("severity")),
-                    safe_str(severity_data.get("severityunit")),
-                    safe_str(population_data.get("populationaffected")),
-                    safe_str(props.get("glide")),
-                    safe_str(props.get("url")),
-                ))
-                inserted += 1
-            except Exception as e:
-                errors += 1
-                log.warning(f"Error processing line in {obj.object_name}: {e}")
-                continue
 
     conn.commit()
     cur.close()
     conn.close()
     log.info(f"GDACS: upserted {inserted} records, {errors} errors → raw_gdacs")
+
 # ─── task 3 : load NASA EONET from MinIO ──────────────────────────────────────
 
 def load_eonet_to_postgres():
+    """
+    Loads NASA EONET JSON files already stored in MinIO bronze/eonet/.
+    If no files exist yet, succeeds silently (run eonet_to_bronze DAG first).
+    """
     client = get_minio()
     conn = get_pg()
     cur = conn.cursor()
@@ -255,8 +241,6 @@ def load_eonet_to_postgres():
                     status      = EXCLUDED.status,
                     closed      = EXCLUDED.closed,
                     event_date  = EXCLUDED.event_date,
-                    latitude    = EXCLUDED.latitude,
-                    longitude   = EXCLUDED.longitude,
                     ingested_at = now()
             """, (
                 eonet_id,
