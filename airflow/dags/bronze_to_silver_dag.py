@@ -160,7 +160,7 @@ def load_gdacs_to_postgres():
                 safe_str(props.get("alertlevel")),
                 safe_str(props.get("fromdate")),
                 safe_str(props.get("todate")),
-                safe_str(props.get("countryname")),
+                safe_str(props.get("country")),
                 safe_str(props.get("iso3")),
                 safe_str(coords[1]) if coords and len(coords) > 1 and coords[1] is not None else None,
                 safe_str(coords[0]) if coords and len(coords) > 0 and coords[0] is not None else None,
